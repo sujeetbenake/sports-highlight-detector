@@ -7,6 +7,7 @@ import json
 from collections import deque
 from motion_detection import detect_motion
 from object_detection import ObjectTracker
+from sport_detection import SportDetector
 
 # Setup output directory
 OUTPUT_DIR = "output"
@@ -125,7 +126,7 @@ def get_screen_capture():
         frame = cv2.cvtColor(screenshot, cv2.COLOR_BGRA2BGR)
         yield frame
 
-def process_frames(capture, mode="video", debug=False):
+def process_frames(capture, mode="video", debug=False, sport="basketball"):
     prev_frame = None
     frame_count = 0
     sample_rate = 3  # Process every 3rd frame instead of every frame
@@ -139,6 +140,9 @@ def process_frames(capture, mode="video", debug=False):
     object_tracker = ObjectTracker(confidence_threshold=0.5)
     last_object_detection_time = 0
     has_significant_action = False
+    
+    # Initialize sport-specific detector
+    sport_detector = SportDetector(sport_type=sport, confidence_threshold=0.5)
     
     # Pre-roll buffer
     pre_roll_size = int(PRE_ROLL_SECONDS * FRAME_RATE)
@@ -171,6 +175,9 @@ def process_frames(capture, mode="video", debug=False):
         # Only process every sample_rate frames
         if frame_count % sample_rate == 0:
             if prev_frame is not None:
+                # Run motion detection for pre-filtering
+                motion_info = detect_motion(prev_frame, frame, threshold=35, debug=debug)
+                
                 # Run sport-specific detection
                 sport_info = sport_detector.detect_action(frame, debug=debug)
                 
@@ -296,6 +303,8 @@ def main():
     parser.add_argument("--mode", choices=["video", "live"], required=True, help="Choose mode: 'video' or 'live'")
     parser.add_argument("--file", type=str, help="Path to video file (if mode is 'video')")
     parser.add_argument("--stream-url", type=str, help="YouTube/Twitch stream URL (if mode is 'live')")
+    parser.add_argument("--sport", type=str, default="basketball", choices=["basketball", "soccer", "badminton"],
+                       help="Sport type: basketball, soccer, or badminton (default: basketball)")
     parser.add_argument("--debug", action="store_true", help="Enable debug mode to visualize motion detection")
 
     args = parser.parse_args()
@@ -315,7 +324,7 @@ def main():
         else:
             capture = get_screen_capture()
 
-    process_frames(capture, mode=args.mode, debug=args.debug)
+    process_frames(capture, mode=args.mode, debug=args.debug, sport=args.sport)
 
 if __name__ == "__main__":
     main()

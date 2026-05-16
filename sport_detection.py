@@ -2,17 +2,24 @@ import cv2
 import numpy as np
 from collections import deque
 from ultralytics import YOLO
+from badminton_detection import BadmintonDetector
 
 class SportDetector:
     def __init__(self, sport_type='basketball', confidence_threshold=0.5):
         """
         Initialize sport-specific detector
         Args:
-            sport_type: 'basketball' or 'soccer'
+            sport_type: 'basketball', 'soccer', or 'badminton'
             confidence_threshold: Minimum confidence for detections
         """
         self.sport_type = sport_type.lower()
         self.confidence_threshold = confidence_threshold
+        
+        # 如果是羽毛球，用 BadmintonDetector
+        if self.sport_type == 'badminton':
+            self.badminton_detector = BadmintonDetector(confidence_threshold)
+            return
+        
         self.model = YOLO('yolov8n.pt')
         
         # Sport-specific parameters
@@ -164,6 +171,10 @@ class SportDetector:
         """
         if self.sport_type == 'basketball':
             return self.detect_basketball_action(frame, debug)
+        elif self.sport_type == 'soccer':
+            return self.detect_soccer_action(frame, debug)
+        elif self.sport_type == 'badminton':
+            return self.badminton_detector.detect_action(frame, debug)
         else:
             return self.detect_soccer_action(frame, debug)
     
@@ -193,7 +204,9 @@ class SportDetector:
     
     def _detect_scoring_opportunity(self, detections):
         """Detect scoring opportunity based on sport"""
-        if self.sport_type == 'basketball':
+        if self.sport_type == 'badminton':
+            return detections.get('has_action', False)
+        elif self.sport_type == 'basketball':
             # Check if players are in scoring position (near basket)
             for player in detections:
                 if self._is_near_basket(player['center']):
