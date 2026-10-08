@@ -196,53 +196,81 @@ def process_frames(capture, mode="video", debug=False, sport="basketball"):
                     log(f"🎬 Starting new highlight at {highlight_start_time:.2f}s (with {len(frame_buffer)} pre-roll frames)")
                 
                 if is_highlight_active:
+                    # Keep collecting frames while highlight is active
                     highlight_frames.append(frame.copy())
+
                     if debug:
                         log(f"📼 Collected frame {len(highlight_frames)} for current highlight")
-                
-                elif is_highlight_active:
-                    # Keep recording if there's still significant motion or action
-                    highlight_frames.append(frame.copy())
-                    
-                    # Update last action time if we have action
+
+                    # Update last action time if an action is detected
                     if sport_info['has_action']:
                         last_action_time = current_time
-                    
-                    # Check if we've hit max duration
+
+                    # Check maximum highlight duration
                     current_duration = current_time - highlight_start_time
+
                     if current_duration >= MAX_HIGHLIGHT_DURATION:
                         log(f"⏰ Max duration reached ({current_duration:.1f}s)")
-                        # Save the highlight video clip
+
                         timestamp = int(time.time())
                         log(f"💾 Attempting to save highlight with {len(highlight_frames)} frames...")
-                        clip_path = os.path.join(CLIPS_DIR, f"highlight_{timestamp}.mp4")
-                        if save_highlight_clip(highlight_frames, clip_path, FRAME_RATE):
+
+                        clip_path = os.path.join(
+                            CLIPS_DIR,
+                            f"highlight_{timestamp}.mp4"
+                        )
+
+                        if save_highlight_clip(
+                            highlight_frames,
+                            clip_path,
+                            FRAME_RATE
+                        ):
                             latest_clip = highlight_frames
                             show_clip = True
                             clip_frame_idx = 0
+
                         last_highlight_time = current_time
                         is_highlight_active = False
                         highlight_frames = []
+
                         continue
-                    
-                    # Only stop recording if action has ended
+
+                    # Stop recording when the detected action ends
                     if not sport_info['has_action']:
+
                         if (current_time - highlight_start_time) >= MIN_HIGHLIGHT_DURATION:
-                            # Save the highlight video clip
+
                             timestamp = int(time.time())
-                            log(f"💾 Attempting to save highlight with {len(highlight_frames)} frames...")
-                            clip_path = os.path.join(CLIPS_DIR, f"highlight_{timestamp}.mp4")
-                            if save_highlight_clip(highlight_frames, clip_path, FRAME_RATE):
+
+                            log(
+                                f"💾 Attempting to save highlight "
+                                f"with {len(highlight_frames)} frames..."
+                            )
+
+                            clip_path = os.path.join(
+                                CLIPS_DIR,
+                                f"highlight_{timestamp}.mp4"
+                            )
+
+                            if save_highlight_clip(
+                                highlight_frames,
+                                clip_path,
+                                FRAME_RATE
+                            ):
                                 latest_clip = highlight_frames
                                 show_clip = True
                                 clip_frame_idx = 0
+
                             last_highlight_time = current_time
+
                         else:
-                            log(f"⏳ Highlight too short ({current_time - highlight_start_time:.1f}s < {MIN_HIGHLIGHT_DURATION}s)")
-                        
+                            log(
+                                f"⏳ Highlight too short "
+                                f"({current_duration:.1f}s < {MIN_HIGHLIGHT_DURATION}s)"
+                            )
+
                         is_highlight_active = False
                         highlight_frames = []
-
             prev_frame = frame.copy()
 
             # Show either the live feed or the latest highlight clip
